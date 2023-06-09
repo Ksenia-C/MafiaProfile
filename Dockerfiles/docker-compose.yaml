@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+  mafia-server:
+
+    build:
+      context: .
+      dockerfile: Dockerfiles/server.Dockerfile
+    image: mafia/server:1.0
+    container_name: mafia-server
+    ports:
+      - 5002:5002
+    environment:
+      - PORT=5002
+  
+  mafia-bot-1:
+
+    build:
+      context: .
+      dockerfile: Dockerfiles/client_bot.Dockerfile
+    depends_on:
+      - mafia-server
+    image: mafia/client_bot:1.0
+    container_name: mafia-bot-1
+    environment:
+      - NAME=saura
+      - PORT=5002
+
+  mafia-bot-2:
+    depends_on:
+      - mafia-server
+    build:
+      context: .
+      dockerfile: Dockerfiles/client_bot.Dockerfile
+    image: mafia/client_bot:1.0
+    container_name: mafia-bot-2
+    environment:
+      - NAME=vieran
+      - PORT=5002
+
+  mafia-bot-3:
+    depends_on:
+      - mafia-server
+    build:
+      context: .
+      dockerfile: Dockerfiles/client_bot.Dockerfile
+    image: mafia/client_bot:1.0
+    container_name: mafia-bot-3
+    environment:
+      - NAME=meccury
+      - PORT=5002
+  

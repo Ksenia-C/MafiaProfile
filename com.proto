@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package mafia;
+
+service MafiaSimple {
+  rpc ListPlayers(RegRequest) returns (stream PlayerListReply) {}
+
+  rpc PlaySession(stream PlaySessionChannel) returns (stream PlaySessionChannel) {}
+
+}
+
+message RegRequest {
+  string name = 1;
+}
+
+message PlayerListReply {
+  string name = 1;
+  string action = 2;
+  int32 pl_session_cnt = 3;
+}
+
+message PlaySessionChannel {
+  string name = 1;
+  string action = 2;
+}
