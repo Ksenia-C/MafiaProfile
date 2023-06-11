@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  profile_server:  
+    # build:
+    #   context: .
+    image: kseniac/mafia_components:profile_server
+    container_name: mafia-server_profile
+    ports:
+      - 5004:5004
+    environment:
+      - PORT=5004

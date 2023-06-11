@@ -7,3 +7,5 @@ com.pb.*
 message_queue/chat.grpc.*
 message_queue/chat.pb.*
 message_queue/cmake/*
+profile_server/profile.db3
+profile_server/build
