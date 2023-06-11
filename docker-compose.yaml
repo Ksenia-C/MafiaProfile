@@ -25,7 +25,7 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfiles/server.Dockerfile
-    image: kseniac/mafia_components:server
+    image: kseniac/mafia_components:server.1
     container_name: mafia-server
     ports:
       - 5002:5002
@@ -41,7 +41,7 @@ services:
     #   dockerfile: Dockerfiles/client_bot.Dockerfile
     depends_on:
       - mafia-server
-    image: kseniac/mafia_components:client_bot
+    image: kseniac/mafia_components:client_bot.1
     container_name: mafia-bot-1
     environment:
       - NAME=saura
@@ -54,7 +54,7 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfiles/client_bot.Dockerfile
-    image: kseniac/mafia_components:client_bot
+    image: kseniac/mafia_components:client_bot.1
     container_name: mafia-bot-2
     environment:
       - NAME=vieran
@@ -67,7 +67,7 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfiles/client_bot.Dockerfile
-    image: kseniac/mafia_components:client_bot
+    image: kseniac/mafia_components:client_bot.1
     container_name: mafia-bot-3
     environment:
       - NAME=meccury

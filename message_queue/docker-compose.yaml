@@ -9,9 +9,9 @@ services:
       - 6379:6379
 
   chat_server:  
-    build:
-      context: .
-      dockerfile: Dockerfiles/server_chat.Dockerfile
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfiles/server_chat.Dockerfile
     image: kseniac/mafia_components:server_chat
     container_name: mafia-server_chat
     ports:
