@@ -1,10 +1,10 @@
-# sudo docker build . --tag mafia/base:1.0 -f Dockerfiles/base.Dockerfile
+# sudo docker build . --tag mafia/base_chat:1.0 -f Dockerfiles/base_chat.Dockerfile
 
 FROM archlinux:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN pacman -Suy --noconfirm gcc wget git ca-certificates cmake base-devel protobuf
+RUN pacman -Sy --noconfirm gcc wget git ca-certificates cmake base-devel protobuf hiredis
 
 RUN git clone --recurse-submodules -b v1.55.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc
 
@@ -19,17 +19,16 @@ RUN cd grpc && \
     make install && \
     popd
 
-# RUN pacman -S --noconfirm protobuf
+RUN git clone https://github.com/sewenew/redis-plus-plus.git && \
+    cd redis-plus-plus &&  mkdir build && cd build && \
+    cmake .. && make && make install && cd ..
 
 COPY CMakeLists.txt CMakeLists.txt
 COPY client.cpp client.cpp
-COPY com.proto com.proto
+COPY chat.proto chat.proto
 COPY server.cpp server.cpp
 
-RUN mkdir message_queue 
-COPY message_queue/chat.proto message_queue/chat.proto
-RUN protoc --grpc_out message_queue/ --cpp_out message_queue/ -I message_queue/ --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin message_queue/chat.proto 
-
+RUN cp redis-plus-plus/build/libredis++.so* /usr/lib
 
 RUN mkdir -p cmake/build
 RUN cd cmake/build && cmake ../../ && make -j 4

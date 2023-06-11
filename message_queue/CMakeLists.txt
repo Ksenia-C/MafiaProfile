@@ -19,12 +19,12 @@
 
 cmake_minimum_required(VERSION 3.8)
 
-project(MafiaSimple C CXX)
+project(MessageQueue C CXX)
 
-include(grpc/examples/cpp/cmake/common.cmake)
+include(../grpc/examples/cpp/cmake/common.cmake)
 
 # Proto file
-get_filename_component(hw_proto "com.proto" ABSOLUTE)
+get_filename_component(hw_proto "chat.proto" ABSOLUTE)
 get_filename_component(hw_proto_path "${hw_proto}" PATH)
 
 # Generated sources
@@ -33,16 +33,10 @@ cmake_path(GET CMAKE_CURRENT_BINARY_DIR PARENT_PATH PARENT_DIR)
 cmake_path(GET PARENT_DIR PARENT_PATH PARENT_DIR)
 
 
-set(hw_proto_srcs "${PARENT_DIR}/com.pb.cc")
-set(hw_proto_hdrs "${PARENT_DIR}/com.pb.h")
-set(hw_grpc_srcs "${PARENT_DIR}/com.grpc.pb.cc")
-set(hw_grpc_hdrs "${PARENT_DIR}/com.grpc.pb.h")
-
-set(chat_proto_srcs "${PARENT_DIR}/message_queue/chat.pb.cc")
-set(chat_proto_hdrs "${PARENT_DIR}/message_queue/chat.pb.h")
-set(chat_grpc_srcs "${PARENT_DIR}/message_queue/chat.grpc.pb.cc")
-set(chat_grpc_hdrs "${PARENT_DIR}/message_queue/chat.grpc.pb.h")
-
+set(hw_proto_srcs "${PARENT_DIR}/chat.pb.cc")
+set(hw_proto_hdrs "${PARENT_DIR}/chat.pb.h")
+set(hw_grpc_srcs "${PARENT_DIR}/chat.grpc.pb.cc")
+set(hw_grpc_hdrs "${PARENT_DIR}/chat.grpc.pb.h")
 add_custom_command(
       OUTPUT "${hw_proto_srcs}" "${hw_proto_hdrs}" "${hw_grpc_srcs}" "${hw_grpc_hdrs}"
       COMMAND ${_PROTOBUF_PROTOC}
@@ -67,26 +61,18 @@ target_link_libraries(hw_grpc_proto
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
 
-add_library(chat_grpc_proto
-  ${chat_grpc_srcs}
-  ${chat_grpc_hdrs}
-  ${chat_proto_srcs}
-  ${chat_proto_hdrs})
-target_link_libraries(chat_grpc_proto
-  ${_REFLECTION}
-  ${_GRPC_GRPCPP}
-  ${_PROTOBUF_LIBPROTOBUF})
-
 # Targets greeter_[async_](client|server)
 foreach(_target
   client server)
   add_executable(${_target} "${_target}.cpp")
   target_link_libraries(${_target}
     hw_grpc_proto
-    chat_grpc_proto
     absl::flags
     absl::flags_parse
     ${_REFLECTION}
     ${_GRPC_GRPCPP}
-    ${_PROTOBUF_LIBPROTOBUF})
+    ${_PROTOBUF_LIBPROTOBUF}
+    redis++
+    hiredis
+    )
 endforeach()

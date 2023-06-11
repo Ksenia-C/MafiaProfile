@@ -3,4 +3,4 @@
 
 FROM mafia/base:1.0
 
-ENTRYPOINT ["sh", "-c", "./cmake/build/client $NAME mafia-server:$PORT"] 
+ENTRYPOINT ["sh", "-c", "./cmake/build/client $NAME mafia-server:$PORT n mafia-server_chat:$CHAT_PORT"] 

@@ -16,6 +16,7 @@
  *
  */
 
+#include <sstream>
 #include <chrono>
 #include <iostream>
 #include <set>
@@ -47,6 +48,13 @@ using mafia::PlaySessionChannel;
 using mafia::RegRequest;
 
 std::set<std::string> players;
+#include "message_queue/chat.grpc.pb.h"
+
+using message_queue::CharServer;
+using message_queue::ClientStream;
+using message_queue::ServerStream;
+
+std::string g_chat_service_address;
 
 class RouteGuideClient
 {
@@ -62,7 +70,6 @@ class RouteGuideClient
     {
         std::set<std::string> result;
         size_t pos = 0;
-        std::string token;
         while ((pos = players_list.find('\n')) != std::string::npos)
         {
             result.insert(players_list.substr(0, pos));
@@ -77,7 +84,7 @@ public:
     {
     }
 
-    std::optional<std::string> ListPlayers(const std::string &this_name)
+    std::optional<std::pair<std::string, std::string>> ListPlayers(const std::string &this_name)
     {
         mafia::RegRequest rect;
         ClientContext context;
@@ -98,10 +105,11 @@ public:
             {
                 players.erase(feature.name());
             }
-            else if (feature.action() == "start")
+            else if (feature.action().substr(0, 5) == "start")
             {
                 auto my_role = feature.name();
-                return my_role;
+                auto session_id = feature.action().substr(5);
+                return std::make_pair(my_role, session_id);
             }
             else
             {
@@ -176,6 +184,10 @@ public:
         if (night_results.has_value())
         {
             std::cout << "this night results: " << *night_results << '\n';
+        }
+        for (auto &line : last_messges)
+        {
+            std::cout << line << '\n';
         }
         fflush(stdout);
     }
@@ -346,12 +358,32 @@ public:
         }
     }
 
-    void PlaySession()
+    void PlaySession(const std::string &session_id)
     {
         ClientContext context;
 
         std::shared_ptr<ClientReaderWriter<PlaySessionChannel, PlaySessionChannel>> stream(
             stub_->PlaySession(&context));
+
+        ///
+        grpc::ClientContext chat_context;
+
+        auto channel = grpc::CreateChannel(g_chat_service_address, grpc::InsecureChannelCredentials());
+        auto stub = CharServer::NewStub(channel);
+
+        std::shared_ptr<ClientReaderWriter<ClientStream, ServerStream>> chat_stream(
+            stub->ProcessChatSession(&chat_context));
+
+        ServerStream chat_server_note;
+        message_queue::ClientStream request;
+        request.set_name("__connect_to_queue__");
+        request.set_message(session_id);
+        chat_stream->Write(request);
+
+        request.set_name("__self_name__");
+        request.set_message(self_name);
+        chat_stream->Write(request);
+        ///
 
         std::set<std::string> possible_day_commands = {"end_day", "execute"};
         std::set<std::string> possible_night_commands;
@@ -374,89 +406,141 @@ public:
         // std::condition_variable wait_time_of_day;
         std::atomic<bool> is_still_play{true};
 
-        std::thread writer([&]()
-                           {
-            mafia::PlaySessionChannel rect;
-            rect.set_action("start_session");
-            rect.set_name(self_name);
-            stream->Write(rect);
-
-            auto cin_person = [&]() -> std::optional<std::string>
+        std::thread get_chat_messages([&]()
+                                      {
+            ServerStream server_note;
+            while (is_still_play && chat_stream->Read(&server_note) && is_still_play)
             {
-                std::string person;
-                std::cin >> person;
-                if (other_players_.count(person) == 0)
+                if (server_note.name() == self_name)
                 {
-                    std::cout << "no such person, try again" << std::endl;
-                    return std::nullopt;
-                }
-                return person;
-            };
-
-            std::string command;
-            while (is_still_play && std::cin >> command && is_still_play)
-            {
-                bool is_day_now = is_day_now_.load();
-                if (is_day_now && possible_day_commands.count(command))
-                {
-                    if (command == "end_day")
-                    {
-                        rect.set_action("end_day");
-                        rect.set_name("");
-                        night_results = std::nullopt;
-                    }
-                    else if (command == "execute")
-                    {
-                        if (auto victim = cin_person())
-                        {
-                            rect.set_action("execute");
-                            rect.set_name(*victim);
-                        } else {
-                            continue;
-                        }
-                    }
-                    else if (command == "show_mafia")
-                    {
-                        rect.set_action("uncover_mafia");
-                        rect.set_name(know_mafia_members);
-                        know_mafia_members = "";
-                    }
-                }
-                else if (!is_day_now && possible_night_commands.count(command))
-                {
-                    if (command == "kill")
-                    {
-                        if (auto victim = cin_person())
-                        {
-                            rect.set_action("kill");
-                            rect.set_name(*victim);
-                        } else {
-                            continue;
-                        }
-                    }
-                    else if (command == "check")
-                    {
-                        if (auto victim = cin_person())
-                        {
-                            last_mafia_check = *victim;
-                            rect.set_action("check");
-                            rect.set_name(last_mafia_check);
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                }
-                else
-                {
-                    std::cout << "sorry, i don't get you" << std::endl;
                     continue;
                 }
-                stream->Write(rect);
+                std::stringstream last_m;
+                last_m << "\033[1;34m" << server_note.name() << "\033[0m: " << server_note.message();
+                last_messges.push_back(last_m.str());
+                std::cout << last_m.str() << std::endl;
             }
+            std::cerr << "yes end " <<std::endl; });
 
-            stream->WritesDone(); });
+        std::thread writer([&]()
+                           {
+                               mafia::PlaySessionChannel rect;
+                               rect.set_action("start_session");
+                               rect.set_name(self_name);
+                               stream->Write(rect);
+
+                               auto try_make_command = [&](std::string input) -> std::optional<std::pair<std::string, std::string>>
+                               {
+                                   size_t pos = 0;
+                                   std::string command;
+                                   if ((pos = input.find(' ')) != std::string::npos)
+                                   {
+                                       command = input.substr(0, pos);
+                                       input.erase(0, pos + 1);
+                                   }
+                                   else
+                                   {
+                                       return std::make_pair(input, "");
+                                   }
+
+                                   std::string person = input;
+                                   std::remove_if(person.begin(), person.end(), isspace);
+                                   if (other_players_.count(person) == 0)
+                                   {
+                                       person = "";
+                                   }
+                                   return std::make_pair(command, person);
+                               };
+
+                               std::string input;
+                               while (is_still_play && std::getline(std::cin, input) && is_still_play)
+                               {
+                                   auto try_command = try_make_command(input);
+
+                                   if (!try_command.has_value())
+                                   {
+
+                                        ClientStream write_to_chart;
+                                        write_to_chart.set_name(self_name);
+                                        write_to_chart.set_message(input);
+                                        chat_stream->Write(write_to_chart);
+                                        continue;
+                                   }
+                                   auto command = try_command->first;
+                                   auto victim = try_command->second;
+
+                                   bool is_day_now = is_day_now_.load();
+                                   if (is_day_now && possible_day_commands.count(command))
+                                   {
+                                       if (command == "end_day")
+                                       {
+                                           rect.set_action("end_day");
+                                           rect.set_name("");
+                                           night_results = std::nullopt;
+                                       }
+                                       else if (command == "execute")
+                                       {
+                                           if (!victim.empty())
+                                           {
+                                               rect.set_action("execute");
+                                               rect.set_name(victim);
+                                           }
+                                           else
+                                           {
+                                               std::cout << "no such person, try again" << std::endl;
+                                               continue;
+                                           }
+                                       }
+                                       else if (command == "show_mafia")
+                                       {
+                                           rect.set_action("uncover_mafia");
+                                           rect.set_name(know_mafia_members);
+                                           know_mafia_members = "";
+                                       }
+                                   }
+                                   else if (!is_day_now && possible_night_commands.count(command))
+                                   {
+                                       if (command == "kill")
+                                       {
+                                           if (!victim.empty())
+                                           {
+                                               rect.set_action("kill");
+                                               rect.set_name(victim);
+                                           }
+                                           else
+                                           {
+                                               std::cout << "no such person, try again" << std::endl;
+                                               continue;
+                                           }
+                                       }
+                                       else if (command == "check")
+                                       {
+                                           if (!victim.empty())
+                                           {
+                                               last_mafia_check = victim;
+                                               rect.set_action("check");
+                                               rect.set_name(last_mafia_check);
+                                           }
+                                           else
+                                           {
+                                               std::cout << "no such person, try again" << std::endl;
+                                               continue;
+                                           }
+                                       }
+                                   }
+                                   else
+                                   {
+                                       ClientStream write_to_chart;
+                                       write_to_chart.set_name(self_name);
+                                       write_to_chart.set_message(input);
+                                       chat_stream->Write(write_to_chart);
+                                       continue;
+                                   }
+                                   stream->Write(rect);
+                               }
+
+                               stream->WritesDone();
+                               chat_stream->WritesDone(); });
 
         PlaySessionChannel server_note;
 
@@ -506,6 +590,7 @@ public:
             else if (server_note.action() == "start_day")
             {
                 is_day_now_.store(true);
+                last_messges.clear();
 
                 std::cout << "day started" << std::endl;
                 cout_possible_commands(possible_day_commands, night_results);
@@ -523,7 +608,7 @@ public:
             }
             else if (server_note.action() == "start_night")
             {
-
+                last_messges.clear();
                 is_day_now_.store(false);
                 cout_possible_commands(possible_night_commands, night_results);
             }
@@ -552,8 +637,10 @@ public:
             }
         }
         writer.join();
+        get_chat_messages.join();
         Status status = stream->Finish();
-        if (!status.ok())
+
+        if (!status.ok() || !chat_stream->Finish().ok())
         {
             std::cout << "RouteChat rpc failed." << std::endl;
         }
@@ -578,6 +665,8 @@ private:
     std::set<std::string> other_players_;
     std::set<std::string> dead_players_;
     std::set<std::string> mafia_players_;
+
+    std::vector<std::string> last_messges;
 };
 
 int main(int argc, char **argv)
@@ -587,25 +676,25 @@ int main(int argc, char **argv)
     std::string get_my_name(argv[1]);
     auto address = argc > 2 ? argv[2] : "localhost:5002";
     bool is_bot_play = argc > 3 && argv[3][0] == 'b';
+    g_chat_service_address = argc > 4 ? argv[4] : "localhost:5003";
 
-    RouteGuideClient guide(
-        grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
+    RouteGuideClient guide(grpc::CreateChannel(address, grpc::InsecureChannelCredentials()));
 
     while (true)
     {
         system("clear");
         std::cout << "Players list" << std::endl;
-        std::optional<std::string> my_role;
+        std::optional<std::pair<std::string, std::string>> my_role;
         if (my_role = guide.ListPlayers(get_my_name))
         {
-            guide.InitSession(get_my_name, std::move(*my_role));
+            guide.InitSession(get_my_name, std::move(my_role->first));
             if (is_bot_play)
             {
                 guide.AutoPlaySession();
             }
             else
             {
-                guide.PlaySession();
+                guide.PlaySession(my_role->second);
             }
         }
         else

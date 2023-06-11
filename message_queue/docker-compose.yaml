@@ -1,0 +1,22 @@
+version: "3"
+
+services:
+  
+  redis_service:
+    image: redis
+    container_name: redis-server
+    ports:
+      - 6379:6379
+
+  chat_server:  
+    build:
+      context: .
+      dockerfile: Dockerfiles/server_chat.Dockerfile
+    image: mafia/server_chat:1.0
+    container_name: mafia-server_chat
+    ports:
+      - 5003:5003
+    environment:
+      - PORT=5003
+    depends_on:
+      - redis_service

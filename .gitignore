@@ -4,3 +4,6 @@ cmake/*
 *.o
 com.grpc.*
 com.pb.*
+message_queue/chat.grpc.*
+message_queue/chat.pb.*
+message_queue/cmake/*

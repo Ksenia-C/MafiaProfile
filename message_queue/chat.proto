@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package message_queue;
+
+service CharServer {
+  rpc SetQueueForClient(SetQueueReq) returns (SimpleResponse) {}
+
+  rpc ProcessChatSession(stream ClientStream) returns (stream ServerStream) {}
+}
+
+message SetQueueReq {
+    string client_name = 1;
+    string queue_name = 2; 
+    string subscribe_status = 3;
+}
+message SimpleResponse {
+    string message = 1;
+}
+
+message ClientStream {
+  string name = 1;
+  string message = 2;
+}
+
+message ServerStream {
+  string name = 1;
+  string message = 2;
+}
