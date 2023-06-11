@@ -26,6 +26,7 @@ RUN git clone https://github.com/SRombauts/SQLiteCpp.git && \
 COPY server.cpp server.cpp
 COPY CMakeLists.txt CMakeLists.txt
 COPY helpers/ helpers/
+COPY FreeSerif.ttf FreeSerif.ttf
 ENV LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 
 

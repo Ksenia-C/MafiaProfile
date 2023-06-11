@@ -41,12 +41,14 @@ public:
                         printf ("ERROR: cannot create pdf object.\n");
                         return 1;
                     }
+                    HPDF_UseUTFEncodings(pdf);
+                    HPDF_SetCurrentEncoder(pdf, "UTF-8");
                     HPDF_Page page_1;
 
                     page_1 = HPDF_AddPage (pdf);
-                    auto def_font = HPDF_GetFont (pdf, "Times-Roman", NULL);
-                    // auto font_name = HPDF_LoadType1FontFromFile (pdf, "../libharu/demo/type1/a010013l.afm",  "../libharu/demo/type1/a010013l.pfb");
-                    // auto def_font = HPDF_GetFont (pdf, font_name, "KOI8-R");
+                    auto font_name = HPDF_LoadTTFontFromFile(pdf, "FreeSerif.ttf", HPDF_TRUE);
+                    auto def_font = HPDF_GetFont (pdf, font_name, "UTF-8");
+
                     HPDF_Page_SetFontAndSize (page_1, def_font, 24);
                     int height = HPDF_Page_GetHeight (page_1);
                     int width = HPDF_Page_GetWidth (page_1);

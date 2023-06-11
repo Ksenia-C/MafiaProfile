@@ -38,6 +38,7 @@
 
 #include "com.grpc.pb.h"
 #include <grpcpp/client_context.h>
+#include <cpr/cpr.h>
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -69,6 +70,8 @@ using message_queue::SetQueueReq;
 using message_queue::SimpleResponse;
 
 std::string g_chat_service_address;
+std::string g_profile_service_address;
+
 class OneSession
 {
     enum WhoWim
@@ -233,6 +236,37 @@ public:
         all_streams_spin_lock[player].store(true);
     }
 
+    void ProcessEndGame(WhoWim end_of_game)
+    {
+        PlaySessionChannel answer;
+        answer.set_action("end_game");
+        answer.set_name(end_of_game == WhoWim::Mafia ? "mafia" : "civil");
+
+        struct timespec end_game;
+        clock_gettime(CLOCK_REALTIME, &end_game);
+        int game_durability = end_game.tv_sec - begin_game.tv_sec;
+
+        for (auto [name, str] : all_streams)
+        {
+            setChannels(name, "delete");
+
+            // str->Write(answer);
+            WriteToPlayer(name, answer);
+
+            bool is_me_win = end_of_game == WhoWim::Mafia && roles[name] == "mafia" ||
+                             end_of_game != WhoWim::Mafia && roles[name] != "mafia";
+
+            cpr::Response r = cpr::Post(cpr::Url{"http://" + g_profile_service_address + "/update_hystory"},
+                                        cpr::Parameters{
+                                            {"name", name},
+                                            {"delta_session_cnt", "1"},
+                                            {"delta_win_cnt", is_me_win ? "1" : "0"},
+                                            {"delta_lose_cnt", is_me_win ? "0" : "1"},
+                                            {"delta_time_sec", std::to_string(game_durability)}});
+            std::cout << r.status_code << ' ' << r.text << std::endl;
+        }
+    }
+
     void PlaySession(::grpc::ServerContext *context, ::grpc::ServerReaderWriter<::mafia::PlaySessionChannel, ::mafia::PlaySessionChannel> *stream,
                      const std::string &player)
     {
@@ -268,6 +302,11 @@ public:
 
         // stream->Write(answer);
         WriteToPlayer(player, answer);
+        cpr::Response r = cpr::Post(cpr::Url{"http://" + g_profile_service_address + "/player"},
+                                    cpr::Parameters{{"name", player}});
+        std::cout << r.status_code << ' ' << r.text << std::endl;
+
+        clock_gettime(CLOCK_REALTIME, &begin_game);
 
         auto send_member_is_dead = [&](const std::string &dead_person, const std::string &how)
         {
@@ -308,17 +347,6 @@ public:
                 waiting_cnt.store(0);
                 was_voted.clear();
 
-                for (auto &pl : players)
-                {
-                    if (is_alive[pl] == true)
-                    {
-                        if (roles[pl] == "mafia" || roles[pl] == "police")
-                        {
-                            waiting_cnt.fetch_add(1);
-                        }
-                    }
-                }
-
                 std::optional<std::string> executing;
                 for (auto &pl : players)
                 {
@@ -333,19 +361,23 @@ public:
                 {
                     send_member_is_dead(*executing, "by vote");
                 }
+
                 WhoWim end_of_game = check_end();
                 if (end_of_game != WhoWim::NobodyYet)
                 {
-                    answer.set_action("end_game");
-                    answer.set_name(end_of_game == WhoWim::Mafia ? "mafia" : "civil");
-
-                    for (auto [name, str] : all_streams)
-                    {
-                        // str->Write(answer);
-                        WriteToPlayer(name, answer);
-                    }
-
+                    ProcessEndGame(end_of_game);
                     return;
+                }
+
+                for (auto &pl : players)
+                {
+                    if (is_alive[pl] == true)
+                    {
+                        if (roles[pl] == "mafia" || roles[pl] == "police")
+                        {
+                            waiting_cnt.fetch_add(1);
+                        }
+                    }
                 }
 
                 for (auto &player : players)
@@ -528,16 +560,9 @@ public:
 
                 if (end_of_game != WhoWim::NobodyYet)
                 {
-                    setChannels(player, "delete");
 
-                    answer.set_action("end_game");
-                    answer.set_name(end_of_game == WhoWim::Mafia ? "mafia" : "civil");
+                    ProcessEndGame(end_of_game);
 
-                    for (auto [name, str] : all_streams)
-                    {
-                        // str->Write(answer);
-                        WriteToPlayer(name, answer);
-                    }
                     return;
                 }
             }
@@ -558,6 +583,7 @@ private:
     std::string victim_this_night;
     std::atomic<int> waiting_cnt{0};
     std::set<std::string> was_voted;
+    struct timespec begin_game;
 
     std::vector<std::string> mafia_pls;
     std::string police_pl;
@@ -783,6 +809,7 @@ int main(int argc, char **argv)
 
     auto port = argc > 1 ? argv[1] : "5002";
     g_chat_service_address = argc > 2 ? argv[2] : "localhost:5003";
+    g_profile_service_address = argc > 3 ? argv[3] : "localhost:5004";
 
     RunServer(port);
 

@@ -76,6 +76,8 @@ target_link_libraries(chat_grpc_proto
   ${_REFLECTION}
   ${_GRPC_GRPCPP}
   ${_PROTOBUF_LIBPROTOBUF})
+  
+find_package(cpr REQUIRED)
 
 # Targets greeter_[async_](client|server)
 foreach(_target
@@ -86,6 +88,7 @@ foreach(_target
     chat_grpc_proto
     absl::flags
     absl::flags_parse
+    cpr::cpr
     ${_REFLECTION}
     ${_GRPC_GRPCPP}
     ${_PROTOBUF_LIBPROTOBUF})

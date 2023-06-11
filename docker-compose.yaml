@@ -10,8 +10,8 @@ services:
 
   chat_server:  
     # build:
-    #   context: .
-    #   dockerfile: message_queue/Dockerfiles/server_chat.Dockerfile
+    #   context: ./message_queue
+    #   dockerfile: Dockerfiles/server_chat.Dockerfile
     image: kseniac/mafia_components:server_chat
     container_name: mafia-server_chat
     ports:
@@ -21,19 +21,33 @@ services:
     depends_on:
       - redis_service
 
+  profile_server:  
+    # build:
+    #   context: ./profile_server
+    image: kseniac/mafia_components:profile_server
+    container_name: mafia-server_profile
+    ports:
+      - 5004:5004
+    environment:
+      - PORT=5004
+    volumes:
+      - profile_volume:/build
+
   mafia-server:
     # build:
     #   context: .
     #   dockerfile: Dockerfiles/server.Dockerfile
-    image: kseniac/mafia_components:server.1
+    image: kseniac/mafia_components:server.2
     container_name: mafia-server
     ports:
       - 5002:5002
     environment:
       - PORT=5002
       - CHAT_PORT=5003
+      - PROFILE_PORT=5004
     depends_on:
       - chat_server
+      - profile_server
   
   mafia-bot-1:
     # build:
@@ -41,7 +55,7 @@ services:
     #   dockerfile: Dockerfiles/client_bot.Dockerfile
     depends_on:
       - mafia-server
-    image: kseniac/mafia_components:client_bot.1
+    image: kseniac/mafia_components:client_bot.2
     container_name: mafia-bot-1
     environment:
       - NAME=saura
@@ -54,7 +68,7 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfiles/client_bot.Dockerfile
-    image: kseniac/mafia_components:client_bot.1
+    image: kseniac/mafia_components:client_bot.2
     container_name: mafia-bot-2
     environment:
       - NAME=vieran
@@ -67,10 +81,12 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfiles/client_bot.Dockerfile
-    image: kseniac/mafia_components:client_bot.1
+    image: kseniac/mafia_components:client_bot.2
     container_name: mafia-bot-3
     environment:
       - NAME=meccury
       - PORT=5002
       - CHAT_PORT=5003
   
+volumes:
+  profile_volume:

@@ -2,4 +2,4 @@
 
 FROM mafia/base:1.0
 
-CMD ["sh", "-c", "./cmake/build/server $PORT mafia-server_chat:$CHAT_PORT"] 
+CMD ["sh", "-c", "./cmake/build/server $PORT mafia-server_chat:$CHAT_PORT mafia-server_profile:$PROFILE_PORT"] 

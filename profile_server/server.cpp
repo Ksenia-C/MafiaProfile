@@ -359,14 +359,16 @@ void update_hystory_method_handler(const shared_ptr<Session> session)
             session->close(BAD_REQUEST, results, {{"Content-Length", to_string(results.size())}});
             return;
         }
-        auto gender = request->get_query_parameter("gender");
-        std::string email = request->get_query_parameter("email");
+        auto delta_session_cnt = request->get_query_parameter("delta_session_cnt", 0);
+        auto delta_win_cnt = request->get_query_parameter("delta_win_cnt", 0);
+        auto delta_lose_cnt = request->get_query_parameter("delta_lose_cnt", 0);
+        auto delta_time_sec = request->get_query_parameter("delta_time_sec", 0);
 
         session->fetch(content_length, [&](const shared_ptr<Session> session, const Bytes &body)
                        {
                            try
                            {
-                                g_db->update_note(name, gender, email);
+                                g_db->update_history(name, delta_session_cnt, delta_win_cnt,  delta_lose_cnt,  delta_time_sec);
                                std::string return_body = "OK";
                                session->close(OK, return_body, {{"Content-Length", to_string(return_body.size())}});
                            }
@@ -404,7 +406,7 @@ int main(const int argc, char **argv)
 
     auto resource_hist = make_shared<Resource>();
     resource_hist->set_path("/update_hystory");
-    resource_hist->set_method_handler("UPDATE", update_hystory_method_handler);
+    resource_hist->set_method_handler("POST", update_hystory_method_handler);
 
     auto resource_multi = make_shared<Resource>();
     resource_multi->set_path("/player_list");

@@ -21,6 +21,14 @@ RUN cd grpc && \
 
 # RUN pacman -S --noconfirm protobuf
 
+RUN git clone https://github.com/libcpr/cpr.git
+
+RUN cd cpr && mkdir build && cd build && \
+    cmake .. -DCPR_USE_SYSTEM_CURL=ON && \
+    cmake --build . && \
+    sudo cmake --install . && \
+    cd ../../
+
 COPY CMakeLists.txt CMakeLists.txt
 COPY client.cpp client.cpp
 COPY com.proto com.proto

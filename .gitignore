@@ -9,3 +9,6 @@ message_queue/chat.pb.*
 message_queue/cmake/*
 profile_server/profile.db3
 profile_server/build
+new_code_version.sh
+profile_server/helpers/profile.db3
+cpr
