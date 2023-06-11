@@ -12,7 +12,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfiles/server_chat.Dockerfile
-    image: kseniac/mafia_components:server_chat
+    image: mafia/server_chat:1.0
     container_name: mafia-server_chat
     ports:
       - 5003:5003

@@ -1,8 +1,27 @@
 version: "3"
 
 services:
-  mafia-server:
+  
+  redis_service:
+    image: redis
+    container_name: redis-server
+    ports:
+      - 6379:6379
 
+  chat_server:  
+    build:
+      context: .
+      dockerfile: message_queue/Dockerfiles/server_chat.Dockerfile
+    image: mafia/server_chat:1.0
+    container_name: mafia-server_chat
+    ports:
+      - 5003:5003
+    environment:
+      - PORT=5003
+    depends_on:
+      - redis_service
+
+  mafia-server:
     build:
       context: .
       dockerfile: Dockerfiles/server.Dockerfile
@@ -12,9 +31,11 @@ services:
       - 5002:5002
     environment:
       - PORT=5002
+      - CHAT_PORT=5003
+    depends_on:
+      - chat_server
   
   mafia-bot-1:
-
     build:
       context: .
       dockerfile: Dockerfiles/client_bot.Dockerfile
@@ -25,6 +46,7 @@ services:
     environment:
       - NAME=saura
       - PORT=5002
+      - CHAT_PORT=5003
 
   mafia-bot-2:
     depends_on:
@@ -37,6 +59,7 @@ services:
     environment:
       - NAME=vieran
       - PORT=5002
+      - CHAT_PORT=5003
 
   mafia-bot-3:
     depends_on:
@@ -49,4 +72,5 @@ services:
     environment:
       - NAME=meccury
       - PORT=5002
+      - CHAT_PORT=5003
   

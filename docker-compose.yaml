@@ -9,10 +9,10 @@ services:
       - 6379:6379
 
   chat_server:  
-    build:
-      context: .
-      dockerfile: message_queue/Dockerfiles/server_chat.Dockerfile
-    image: mafia/server_chat:1.0
+    # build:
+    #   context: .
+    #   dockerfile: message_queue/Dockerfiles/server_chat.Dockerfile
+    image: kseniac/mafia_components:server_chat
     container_name: mafia-server_chat
     ports:
       - 5003:5003
@@ -22,10 +22,10 @@ services:
       - redis_service
 
   mafia-server:
-    build:
-      context: .
-      dockerfile: Dockerfiles/server.Dockerfile
-    image: mafia/server:1.0
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfiles/server.Dockerfile
+    image: kseniac/mafia_components:server
     container_name: mafia-server
     ports:
       - 5002:5002
@@ -36,12 +36,12 @@ services:
       - chat_server
   
   mafia-bot-1:
-    build:
-      context: .
-      dockerfile: Dockerfiles/client_bot.Dockerfile
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfiles/client_bot.Dockerfile
     depends_on:
       - mafia-server
-    image: mafia/client_bot:1.0
+    image: kseniac/mafia_components:client_bot
     container_name: mafia-bot-1
     environment:
       - NAME=saura
@@ -51,10 +51,10 @@ services:
   mafia-bot-2:
     depends_on:
       - mafia-server
-    build:
-      context: .
-      dockerfile: Dockerfiles/client_bot.Dockerfile
-    image: mafia/client_bot:1.0
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfiles/client_bot.Dockerfile
+    image: kseniac/mafia_components:client_bot
     container_name: mafia-bot-2
     environment:
       - NAME=vieran
@@ -64,10 +64,10 @@ services:
   mafia-bot-3:
     depends_on:
       - mafia-server
-    build:
-      context: .
-      dockerfile: Dockerfiles/client_bot.Dockerfile
-    image: mafia/client_bot:1.0
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfiles/client_bot.Dockerfile
+    image: kseniac/mafia_components:client_bot
     container_name: mafia-bot-3
     environment:
       - NAME=meccury
